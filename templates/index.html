@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Management System | MongoDB CRUD</title>
+  <meta name="description" content="Student Management System using MongoDB and Python — Experiment 18 CRUD Operations" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & Base ──────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0a0f1e;
+      --surface:   #111827;
+      --card:      #151e2e;
+      --border:    #1f2d45;
+      --accent:    #3b82f6;
+      --accent2:   #6366f1;
+      --success:   #10b981;
+      --danger:    #ef4444;
+      --warning:   #f59e0b;
+      --text:      #e2e8f0;
+      --muted:     #64748b;
+      --radius:    14px;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Background Glow ───────────────────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: -1;
+      background:
+        radial-gradient(ellipse 80% 50% at 20% 10%, rgba(59,130,246,.15) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 40% at 80% 80%, rgba(99,102,241,.10) 0%, transparent 60%);
+    }
+
+    /* ── Header ────────────────────────────────────────────────────── */
+    header {
+      padding: 28px 40px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      background: rgba(10,15,30,.8);
+      position: sticky; top: 0; z-index: 100;
+    }
+
+    .logo {
+      display: flex; align-items: center; gap: 14px;
+    }
+
+    .logo-icon {
+      width: 42px; height: 42px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; box-shadow: 0 0 20px rgba(59,130,246,.4);
+    }
+
+    .logo h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: -.3px; }
+    .logo p  { font-size: .75rem; color: var(--muted); margin-top: 2px; }
+
+    .status-badge {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 14px; border-radius: 999px;
+      background: rgba(16,185,129,.12); border: 1px solid rgba(16,185,129,.3);
+      font-size: .78rem; color: var(--success); font-weight: 500;
+    }
+    .status-badge .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 6px var(--success);
+      animation: pulse 1.8s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* ── Layout ────────────────────────────────────────────────────── */
+    main { max-width: 1200px; margin: 0 auto; padding: 36px 24px 60px; }
+
+    /* Stats bar */
+    .stats { display: flex; gap: 16px; margin-bottom: 32px; flex-wrap: wrap; }
+    .stat-card {
+      flex: 1; min-width: 140px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 18px 22px;
+      transition: transform .2s;
+    }
+    .stat-card:hover { transform: translateY(-3px); }
+    .stat-card .label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+    .stat-card .value { font-size: 2rem; font-weight: 800; margintop: 4px; }
+    .stat-card.blue .value  { color: var(--accent); }
+    .stat-card.green .value { color: var(--success); }
+    .stat-card.purple .value{ color: var(--accent2); }
+    .stat-card.orange .value{ color: var(--warning); }
+
+    /* Two-column grid */
+    .grid { display: grid; grid-template-columns: 380px 1fr; gap: 24px; align-items: start; }
+    @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+
+    /* ── Cards ─────────────────────────────────────────────────────── */
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 26px;
+    }
+    .card-title {
+      font-size: .95rem; font-weight: 700; margin-bottom: 20px;
+      display: flex; align-items: center; gap: 8px; color: var(--text);
+    }
+    .card-title .icon { font-size: 1.1rem; }
+
+    /* ── Form ──────────────────────────────────────────────────────── */
+    .form-group { margin-bottom: 14px; }
+    label { display: block; font-size: .78rem; color: var(--muted); margin-bottom: 6px; font-weight: 500; }
+
+    input, select {
+      width: 100%; padding: 10px 14px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-family: inherit;
+      font-size: .88rem; outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    input:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(59,130,246,.18);
+    }
+    input::placeholder { color: var(--muted); }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      padding: 10px 20px; border-radius: 8px; border: none;
+      font-family: inherit; font-size: .88rem; font-weight: 600;
+      cursor: pointer; transition: all .2s;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff; width: 100%; margin-top: 4px;
+      box-shadow: 0 4px 18px rgba(59,130,246,.35);
+    }
+    .btn-primary:hover { box-shadow: 0 6px 24px rgba(59,130,246,.55); }
+    .btn-sm { padding: 6px 12px; font-size: .78rem; border-radius: 6px; }
+    .btn-edit  { background: rgba(59,130,246,.15); color: var(--accent);  border: 1px solid rgba(59,130,246,.3); }
+    .btn-edit:hover  { background: rgba(59,130,246,.28); }
+    .btn-delete{ background: rgba(239,68,68,.12); color: var(--danger);   border: 1px solid rgba(239,68,68,.25); }
+    .btn-delete:hover{ background: rgba(239,68,68,.25); }
+    .btn-clear { background: rgba(100,116,139,.12); color: var(--muted);  border: 1px solid var(--border); }
+    .btn-clear:hover { background: rgba(100,116,139,.22); color: var(--text); }
+
+    /* ── Toast ─────────────────────────────────────────────────────── */
+    #toast {
+      position: fixed; top: 24px; right: 24px; z-index: 9999;
+      padding: 14px 20px; border-radius: 10px;
+      font-size: .88rem; font-weight: 500;
+      display: flex; align-items: center; gap: 10px;
+      transform: translateX(120%); transition: transform .35s cubic-bezier(.34,1.56,.64,1);
+      min-width: 260px; box-shadow: 0 8px 32px rgba(0,0,0,.4);
+    }
+    #toast.show  { transform: translateX(0); }
+    #toast.success{ background: rgba(16,185,129,.15); border:1px solid rgba(16,185,129,.35); color: var(--success); }
+    #toast.error  { background: rgba(239,68,68,.15);  border:1px solid rgba(239,68,68,.35);  color: var(--danger); }
+
+    /* ── Search bar ─────────────────────────────────────────────────── */
+    .search-bar {
+      display: flex; gap: 10px; margin-bottom: 20px;
+    }
+    .search-bar input { flex: 1; }
+    .search-bar .btn  { flex-shrink: 0; background: rgba(59,130,246,.15); color: var(--accent); border: 1px solid rgba(59,130,246,.3); }
+    .search-bar .btn:hover { background: rgba(59,130,246,.28); }
+
+    /* ── Table ─────────────────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+    thead th {
+      text-align: left; padding: 10px 14px;
+      color: var(--muted); font-size: .72rem; text-transform: uppercase;
+      letter-spacing: .07em; border-bottom: 1px solid var(--border);
+    }
+    tbody tr {
+      border-bottom: 1px solid rgba(31,45,69,.6);
+      transition: background .15s;
+    }
+    tbody tr:hover { background: rgba(59,130,246,.05); }
+    tbody td { padding: 12px 14px; vertical-align: middle; }
+
+    .badge {
+      display: inline-block; padding: 3px 10px; border-radius: 999px;
+      font-size: .72rem; font-weight: 600; text-transform: uppercase;
+    }
+    .badge-cse  { background: rgba(59,130,246,.15); color: var(--accent); }
+    .badge-ece  { background: rgba(99,102,241,.15); color: var(--accent2); }
+    .badge-me   { background: rgba(245,158,11,.15); color: var(--warning); }
+    .badge-other{ background: rgba(100,116,139,.15); color: var(--muted); }
+
+    .empty-state {
+      text-align: center; padding: 50px 20px;
+      color: var(--muted);
+    }
+    .empty-state .big { font-size: 3rem; margin-bottom: 10px; }
+    .empty-state p { font-size: .9rem; }
+
+    /* ── Modal ─────────────────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,.65); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity .25s;
+    }
+    .modal-overlay.active { opacity: 1; pointer-events: all; }
+    .modal {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 30px; width: min(480px, 90vw);
+      transform: translateY(20px) scale(.97); transition: transform .25s;
+    }
+    .modal-overlay.active .modal { transform: translateY(0) scale(1); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
+    .modal-title { font-weight: 700; font-size: 1rem; }
+    .btn-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1.3rem; padding: 0 4px; transition: color .2s; }
+    .btn-close:hover { color: var(--danger); }
+    .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .modal-actions .btn { flex: 1; }
+    .btn-save { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; }
+    .btn-cancel { background: rgba(100,116,139,.12); color: var(--muted); border: 1px solid var(--border); }
+    .btn-cancel:hover { background: rgba(100,116,139,.22); color: var(--text); }
+
+    /* Spinner */
+    .spinner {
+      width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.2);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin .6s linear infinite; flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ID column truncate */
+    .id-cell { font-family: monospace; font-size: .72rem; color: var(--muted); max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ────────────────────────────────────────────────────────────── -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">🎓</div>
+    <div>
+      <h1>Student Management System</h1>
+      <p>MongoDB CRUD — Experiment 18</p>
+    </div>
+  </div>
+  <div class="status-badge"><span class="dot"></span> MongoDB Connected</div>
+</header>
+
+<!-- ── Toast ─────────────────────────────────────────────────────────────── -->
+<div id="toast"></div>
+
+<!-- ── Edit Modal ─────────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">✏️ Edit Student</span>
+      <button class="btn-close" onclick="closeModal()">✕</button>
+    </div>
+    <input type="hidden" id="editId" />
+    <div class="form-group">
+      <label>Full Name</label>
+      <input id="editName" type="text" placeholder="e.g. Rahul" />
+    </div>
+    <div class="form-group">
+      <label>Age</label>
+      <input id="editAge" type="number" placeholder="e.g. 20" />
+    </div>
+    <div class="form-group">
+      <label>Department</label>
+      <select id="editDept">
+        <option value="CSE">CSE</option>
+        <option value="ECE">ECE</option>
+        <option value="ME">ME</option>
+        <option value="CE">CE</option>
+        <option value="EEE">EEE</option>
+        <option value="IT">IT</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>City</label>
+      <input id="editCity" type="text" placeholder="e.g. Kochi" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-save" id="saveBtn" onclick="saveEdit()">💾 Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Main ───────────────────────────────────────────────────────────────── -->
+<main>
+
+  <!-- Stats -->
+  <div class="stats" id="statsBar">
+    <div class="stat-card blue">
+      <div class="label">Total Students</div>
+      <div class="value" id="statTotal">—</div>
+    </div>
+    <div class="stat-card green">
+      <div class="label">Departments</div>
+      <div class="value" id="statDepts">—</div>
+    </div>
+    <div class="stat-card purple">
+      <div class="label">Cities</div>
+      <div class="value" id="statCities">—</div>
+    </div>
+    <div class="stat-card orange">
+      <div class="label">Avg. Age</div>
+      <div class="value" id="statAge">—</div>
+    </div>
+  </div>
+
+  <div class="grid">
+
+    <!-- ── Left: Insert Form ───────────────────────────────────────────── -->
+    <div>
+      <div class="card">
+        <div class="card-title"><span class="icon">➕</span> Add New Student</div>
+
+        <div class="form-group">
+          <label for="inpName">Full Name *</label>
+          <input id="inpName" type="text" placeholder="e.g. Rahul" />
+        </div>
+        <div class="form-group">
+          <label for="inpAge">Age</label>
+          <input id="inpAge" type="number" placeholder="e.g. 20" min="1" max="100" />
+        </div>
+        <div class="form-group">
+          <label for="inpDept">Department</label>
+          <select id="inpDept">
+            <option value="CSE">CSE — Computer Science</option>
+            <option value="ECE">ECE — Electronics</option>
+            <option value="ME">ME — Mechanical</option>
+            <option value="CE">CE — Civil</option>
+            <option value="EEE">EEE — Electrical</option>
+            <option value="IT">IT — Information Tech</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="inpCity">City</label>
+          <input id="inpCity" type="text" placeholder="e.g. Kochi" />
+        </div>
+
+        <button class="btn btn-primary" id="insertBtn" onclick="insertStudent()">
+          ➕ Insert Student
+        </button>
+      </div>
+
+      <!-- Quick Insert (Experiment data) -->
+      <div class="card" style="margin-top:16px;">
+        <div class="card-title"><span class="icon">⚡</span> Quick Demo Insert</div>
+        <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px;">Insert the 3 sample students from Experiment 18 instantly.</p>
+        <button class="btn btn-primary" style="background:linear-gradient(135deg,#10b981,#059669)" onclick="insertDemo()">
+          🚀 Insert Demo Students
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Right: Table ────────────────────────────────────────────────── -->
+    <div class="card">
+      <div class="card-title" style="justify-content:space-between;">
+        <span><span class="icon">📋</span> All Students</span>
+        <button class="btn btn-sm btn-clear" onclick="if(confirm('Delete ALL students?')) deleteAll()">🗑 Delete All</button>
+      </div>
+
+      <div class="search-bar">
+        <input id="searchInput" type="text" placeholder="Search by name, department or city…" oninput="loadStudents()" />
+        <button class="btn btn-sm" onclick="loadStudents()">🔍 Search</button>
+      </div>
+
+      <div class="table-wrap" id="tableWrap">
+        <div class="empty-state">
+          <div class="big">📭</div>
+          <p>No students yet. Add one!</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+  // ── API Helpers ─────────────────────────────────────────────────────────
+  const API = '/api/students';
+
+  async function api(url, method='GET', body=null) {
+    const opts = { method, headers: {'Content-Type':'application/json'} };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(url, opts);
+    return res.json();
+  }
+
+  // ── Toast ───────────────────────────────────────────────────────────────
+  let toastTimer;
+  function toast(msg, type='success') {
+    const el = document.getElementById('toast');
+    el.textContent = (type==='success' ? '✅ ' : '❌ ') + msg;
+    el.className = `show ${type}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
+  }
+
+  // ── Insert ──────────────────────────────────────────────────────────────
+  async function insertStudent() {
+    const name = document.getElementById('inpName').value.trim();
+    const age  = parseInt(document.getElementById('inpAge').value) || null;
+    const dept = document.getElementById('inpDept').value;
+    const city = document.getElementById('inpCity').value.trim();
+
+    if (!name) { toast('Name is required!', 'error'); return; }
+
+    const btn = document.getElementById('insertBtn');
+    btn.innerHTML = '<span class="spinner"></span> Inserting…';
+    btn.disabled = true;
+
+    const r = await api(API, 'POST', { name, age, department: dept, city });
+    btn.innerHTML = '➕ Insert Student'; btn.disabled = false;
+
+    if (r.id) {
+      toast('Student inserted successfully!');
+      document.getElementById('inpName').value = '';
+      document.getElementById('inpAge').value  = '';
+      document.getElementById('inpCity').value = '';
+      loadStudents();
+    } else {
+      toast(r.error || 'Insert failed', 'error');
+    }
+  }
+
+  // ── Demo Insert ─────────────────────────────────────────────────────────
+  async function insertDemo() {
+    const demo = [
+      { name:'Rahul', age:20, department:'CSE', city:'Calicut' },
+      { name:'Anu',   age:21, department:'ECE', city:'Kochi'   },
+      { name:'Arjun', age:22, department:'ME',  city:'Kannur'  }
+    ];
+    for (const s of demo) await api(API, 'POST', s);
+    toast('3 demo students inserted!');
+    loadStudents();
+  }
+
+  // ── Load / Search ───────────────────────────────────────────────────────
+  async function loadStudents() {
+    const search = document.getElementById('searchInput').value.trim();
+    const url = search ? `${API}?search=${encodeURIComponent(search)}` : API;
+    const students = await api(url);
+    renderTable(students);
+    updateStats(students);
+  }
+
+  // ── Render Table ────────────────────────────────────────────────────────
+  function deptBadge(d='') {
+    const map = { CSE:'badge-cse', ECE:'badge-ece', ME:'badge-me' };
+    return `<span class="badge ${map[d]||'badge-other'}">${d||'—'}</span>`;
+  }
+
+  function renderTable(students) {
+    const wrap = document.getElementById('tableWrap');
+    if (!students.length) {
+      wrap.innerHTML = `<div class="empty-state"><div class="big">📭</div><p>No students found.</p></div>`;
+      return;
+    }
+    wrap.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Age</th>
+            <th>Dept</th>
+            <th>City</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${students.map(s => `
+            <tr id="row-${s._id}">
+              <td class="id-cell" title="${s._id}">${s._id.slice(-6)}</td>
+              <td><strong>${s.name||'—'}</strong></td>
+              <td>${s.age||'—'}</td>
+              <td>${deptBadge(s.department)}</td>
+              <td>${s.city||'—'}</td>
+              <td style="display:flex;gap:6px;">
+                <button class="btn btn-sm btn-edit" onclick='openEdit(${JSON.stringify(s)})'>✏️ Edit</button>
+                <button class="btn btn-sm btn-delete" onclick="deleteStudent('${s._id}')">🗑</button>
+              </td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  // ── Stats ───────────────────────────────────────────────────────────────
+  function updateStats(students) {
+    document.getElementById('statTotal').textContent  = students.length;
+    document.getElementById('statDepts').textContent  = new Set(students.map(s=>s.department).filter(Boolean)).size;
+    document.getElementById('statCities').textContent = new Set(students.map(s=>s.city).filter(Boolean)).size;
+    const ages = students.map(s=>s.age).filter(Boolean);
+    document.getElementById('statAge').textContent = ages.length
+      ? (ages.reduce((a,b)=>a+b,0)/ages.length).toFixed(1) : '—';
+  }
+
+  // ── Delete ──────────────────────────────────────────────────────────────
+  async function deleteStudent(id) {
+    if (!confirm('Delete this student?')) return;
+    const r = await api(`${API}/${id}`, 'DELETE');
+    if (r.message) { toast('Student deleted!'); loadStudents(); }
+    else toast(r.error || 'Delete failed', 'error');
+  }
+
+  async function deleteAll() {
+    const r = await api(API, 'DELETE');
+    toast(r.message || 'Done');
+    loadStudents();
+  }
+
+  // ── Edit Modal ──────────────────────────────────────────────────────────
+  function openEdit(s) {
+    document.getElementById('editId').value   = s._id;
+    document.getElementById('editName').value = s.name        || '';
+    document.getElementById('editAge').value  = s.age         || '';
+    document.getElementById('editDept').value = s.department  || 'CSE';
+    document.getElementById('editCity').value = s.city        || '';
+    document.getElementById('editModal').classList.add('active');
+  }
+
+  function closeModal() {
+    document.getElementById('editModal').classList.remove('active');
+  }
+
+  async function saveEdit() {
+    const id   = document.getElementById('editId').value;
+    const name = document.getElementById('editName').value.trim();
+    const age  = parseInt(document.getElementById('editAge').value) || null;
+    const dept = document.getElementById('editDept').value;
+    const city = document.getElementById('editCity').value.trim();
+
+    if (!name) { toast('Name is required!', 'error'); return; }
+
+    const btn = document.getElementById('saveBtn');
+    btn.innerHTML = '<span class="spinner"></span> Saving…'; btn.disabled = true;
+
+    const r = await api(`${API}/${id}`, 'PUT', { name, age, department: dept, city });
+    btn.innerHTML = '💾 Save Changes'; btn.disabled = false;
+
+    if (r.message) {
+      toast('Student updated!');
+      closeModal();
+      loadStudents();
+    } else {
+      toast(r.error || 'Update failed', 'error');
+    }
+  }
+
+  // Close modal on overlay click
+  document.getElementById('editModal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  // Enter key on search
+  document.getElementById('searchInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') loadStudents();
+  });
+
+  // ── Init ─────────────────────────────────────────────────────────────────
+  loadStudents();
+</script>
+</body>
+</html>
