@@ -80,4 +80,3 @@ To create a simple Student Management System using MongoDB and Python to perform
 The web application automatically connects to a local MongoDB instance on port `27017` and uses the database `studentDB` and collection `students`.
 
 ---
-*Created as part of Experiment 18 - MongoDB Python CRUD Experiment.*
